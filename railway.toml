@@ -1,0 +1,16 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install && npm run prisma:generate && npm run build"
+
+[deploy]
+startCommand = "npm run prisma:migrate && npm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[env]
+NODE_ENV = "production"
+# DATABASE_URL will be provided by Railway MongoDB plugin
+# JWT_SECRET will be auto-generated
+# CORS_ORIGIN = "https://your-frontend.vercel.app"

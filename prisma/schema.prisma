@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  email             String    @unique
+  passwordHash      String
+  name              String
+  role              String    @default("customer") // customer | admin
+  avatar            String?
+  walletBalance     Float     @default(0)
+  vipLevel          Int       @default(1)
+  identityClass     String?   // sub_account | agent | standalone
+  upstreamName      String?
+  monthlySpend      Float     @default(0)
+  twoFactorEnabled  Boolean   @default(false)
+  twoFactorSecret   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  cards             Card[]
+  transactions      Transaction[]
+  kyc               KycRecord?
+  reconciliation    ReconciliationRequest[]
+
+  @@map("users")
+}
+
+model Card {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @db.ObjectId
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  number          String
+  cvv             String
+  expiry          String
+  brand           String    // Visa | Mastercard
+  bin             String
+  nickname        String
+  balance         Float     @default(0)
+  limit           Float
+  status          String    @default("pending") // pending | active | frozen | cancelled
+  label           String    @default("General")
+  billingAddress  String?
+  issuedAt        DateTime?
+  routingType     String?   // manual | auto
+  applicationId   String?
+  amzTaskId       String?
+  amzOrderNo      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  transactions    Transaction[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("cards")
+}
+
+model Transaction {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @db.ObjectId
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId          String?   @db.ObjectId
+  card            Card?     @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  cardLast4       String?
+  cardNickname    String?
+  merchant        String
+  amount          Float
+  currency        String    @default("USD")
+  status          String    @default("success") // success | pending | failed
+  timestamp       DateTime  @default(now())
+  description     String
+
+  @@index([userId])
+  @@index([cardId])
+  @@index([timestamp])
+  @@map("transactions")
+}
+
+model KycRecord {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String    @unique @db.ObjectId
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status              String    @default("not_submitted")
+  documentType        String?
+  fileName            String?
+  legalName           String?
+  documentNumber      String?
+  birthDate           String?
+  nationality         String?
+  residentialAddress  String?
+  files               Json?
+  submittedAt         DateTime?
+  feedback            String?
+  reviewedAt          DateTime?
+  reviewedBy          String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("kyc_records")
+}
+
+model BinConfig {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  bin         String   @unique
+  name        String
+  category    String
+  quality     String
+  network     String   // Visa | Mastercard
+  status      String   @default("active") // active | disabled
+  routingType String?  // manual | auto
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("bin_configs")
+}
+
+model AdminConfig {
+  id                      String  @id @default(auto()) @map("_id") @db.ObjectId
+  fundingAddress          String  @default("")
+  depositFeeRate          Float   @default(0.04)
+  cardCreationFeesByVip   Json    @default("{}")
+  loadFeeRatesByVip       Json    @default("{}")
+  rebateRatesByVip        Json    @default("{}")
+  updatedAt               DateTime @updatedAt
+
+  @@map("admin_configs")
+}
+
+model ReconciliationRequest {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  txnId       String
+  amount      Float
+  reason      String
+  notes       String
+  status      String   @default("pending_review") // pending_review | approved | rejected
+  createdAt   DateTime @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+
+  @@index([userId])
+  @@index([status])
+  @@map("reconciliation_requests")
+}
+
+model AuditLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String?  @db.ObjectId
+  action    String
+  resource  String
+  resourceId String?
+  details   Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
