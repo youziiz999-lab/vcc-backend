@@ -33,34 +33,42 @@ app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: '接口不存在' })
 })
 
-async function start() {
-  try {
-    await prisma.$connect()
-    console.log('[DB] Connected to database')
-
-    const server = app.listen(config.port, '0.0.0.0', () => {
-      console.log(`[Server] Running on http://localhost:${config.port} (${config.nodeEnv})`)
-      console.log(`[API] Auth: /api/auth/*`)
-      console.log(`[API] Customer: /api/customer/*`)
-      console.log(`[API] Admin: /api/admin/*`)
-    })
-
-    const shutdown = async (signal: string) => {
-      console.log(`\n[Server] Received ${signal}, shutting down...`)
-      server.close(async () => {
-        await prisma.$disconnect()
-        console.log('[Server] Closed')
-        process.exit(0)
-      })
-      setTimeout(() => process.exit(1), 10000)
+async function connectDB(retries = 3): Promise<void> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await prisma.$connect()
+      console.log('[DB] Connected to database')
+      return
+    } catch (err) {
+      console.error(`[DB] Connection attempt ${i + 1}/${retries} failed:`, err)
+      if (i < retries - 1) await new Promise(r => setTimeout(r, 3000))
     }
-
-    process.on('SIGTERM', () => shutdown('SIGTERM'))
-    process.on('SIGINT', () => shutdown('SIGINT'))
-  } catch (err) {
-    console.error('[Server] Failed to start:', err)
-    process.exit(1)
   }
+  console.warn('[DB] All connection attempts failed, server running without DB')
+}
+
+async function start() {
+  const server = app.listen(config.port, '0.0.0.0', () => {
+    console.log(`[Server] Running on http://localhost:${config.port} (${config.nodeEnv})`)
+    console.log(`[API] Auth: /api/auth/*`)
+    console.log(`[API] Customer: /api/customer/*`)
+    console.log(`[API] Admin: /api/admin/*`)
+  })
+
+  connectDB()
+
+  const shutdown = async (signal: string) => {
+    console.log(`\n[Server] Received ${signal}, shutting down...`)
+    server.close(async () => {
+      await prisma.$disconnect()
+      console.log('[Server] Closed')
+      process.exit(0)
+    })
+    setTimeout(() => process.exit(1), 10000)
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
 
 start()
