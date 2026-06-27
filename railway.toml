@@ -1,5 +1,6 @@
 [build]
-builder = "DOCKERFILE"
+builder = "NIXPACKS"
+buildCommand = "npm install && npm run prisma:generate && npm run build"
 
 [deploy]
 healthcheckPath = "/health"
