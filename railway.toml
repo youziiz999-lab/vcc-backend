@@ -1,9 +1,7 @@
 [build]
-builder = "NIXPACKS"
-buildCommand = "npm install && npm run prisma:generate && npm run build"
+builder = "DOCKERFILE"
 
 [deploy]
-startCommand = "npm start"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
